@@ -1,4 +1,5 @@
 public class InventoryItem {
+
     private int id;
     private String name;
     private String category;
@@ -7,7 +8,8 @@ public class InventoryItem {
     private int stockAvailable;
     private int stockOnLoan;
 
-    public InventoryItem(int id, String name, String category, String location, int stockTotal, int stockAvailable, int stockOnLoan){
+    public InventoryItem(int id, String name, String category, String location,
+                         int stockTotal, int stockAvailable, int stockOnLoan) {
         this.id = id;
         this.name = name;
         this.category = category;
@@ -16,59 +18,39 @@ public class InventoryItem {
         this.stockAvailable = stockAvailable;
         this.stockOnLoan = stockOnLoan;
     }
-    public int getId() {
-        return id;
-    }
-    public String getName() {
-        return name;
-    }
-    public String getCategory(){
-        return category;
-    }
-    public String getLocation(){
-        return location;
-    }
-    public int getStockTotal(){
-        return stockTotal;
-    }
-    public int getStockAvailable(){
-        return stockAvailable;
-    }
-    public int getStockOnLoan(){
-        return stockOnLoan;
-    }
-    public void addStock(int quantity){
-        if(quantity <= 0){
-            stockTotal += quantity;
-            stockAvailable += quantity;
-        }
+
+    public int getId() { return id; }
+    public String getName() { return name; }
+    public String getCategory() { return category; }
+    public String getLocation() { return location; }
+    public int getStockTotal() { return stockTotal; }
+    public int getStockAvailable() { return stockAvailable; }
+    public int getStockOnLoan() { return stockOnLoan; }
+
+    public void addStock(int quantity) {
+        if (quantity <= 0) return;
+        stockTotal += quantity;
+        stockAvailable += quantity;
     }
 
-    public boolean lend(int quantity){
-        if(quantity <= 0){
-            return false;
-        }
-        if(stockAvailable < quantity){
-            return false;
-        }
+    public boolean lend(int quantity) {
+        if (quantity <= 0) return false;
+        if (stockAvailable < quantity) return false;
         stockAvailable -= quantity;
         stockOnLoan += quantity;
         return true;
     }
 
-    public boolean receive(int quantity){
-        if(quantity <= 0){
-            return false;
-        }
-        if(stockOnLoan < quantity){
-            return false;
-        }
+    public boolean receive(int quantity) {
+        if (quantity <= 0) return false;
+        if (stockOnLoan < quantity) return false;
         stockOnLoan -= quantity;
         stockAvailable += quantity;
         return true;
     }
-    @Override
-    public String toString(){
-        return String.format("InventoryItem{id=%d, name='%s', category='%s', location='%s'," + "stockTotal=%d, stockAvailable=%d, stockOnLoan=%d}", id, name, category,location, stockTotal,stockAvailable,stockOnLoan);
+
+    public String toString() {
+        return "InventoryItem{id=" + id + ", name=" + name + ", stockTotal=" + stockTotal +
+               ", stockAvailable=" + stockAvailable + ", stockOnLoan=" + stockOnLoan + "}";
     }
 }

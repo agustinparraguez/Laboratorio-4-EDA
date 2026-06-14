@@ -6,11 +6,10 @@ LEND -> get + actualización (préstamo a estudiante)
 RECEIVE -> get + actualización (devolución de componente)
 DISPOSE -> delete (baja por daño, pérdida u obsolescencia)
 */
-
-public class OperationType {
-    PURCHASE;
-    QUERY;
-    LEND;
-    RECEIVE;
-    DISPOSE;
+public enum OperationType {
+    PURCHASE,
+    QUERY,
+    LEND,
+    RECEIVE,
+    DISPOSE
 }

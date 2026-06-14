@@ -5,12 +5,11 @@ public class InventoryOperation {
     private final InventoryItem item;
 
     public InventoryOperation(OperationType type, int key, int quantity, InventoryItem item){
-        this.type = type;
-        this.key = key;
-        this.quantity = quantity;
+        this.type =type;
+        this.key= key;
+        this.quantity=quantity;
         this.item = item;
     }
-
     public OperationType getType(){
         return type;
     }
