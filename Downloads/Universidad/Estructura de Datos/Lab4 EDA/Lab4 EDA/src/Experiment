@@ -1,0 +1,217 @@
+import edu.princeton.cs.algs4.StopwatchCPU;
+import edu.princeton.cs.algs4.Out;
+import edu.princeton.cs.algs4.StdRandom;
+import java.util.ArrayList;
+
+public class Experiment {
+
+    private static final String CSV_HEADER =
+            "instancia,estructura,m,purchase_total,query_total,lend_total,receive_total," +
+            "dispose_total,query_successful,query_failed,lend_successful,lend_failed," +
+            "receive_successful,receive_failed,final_size,final_height,elapsed_seconds";
+
+    private static class RunStats {
+        int purchaseTotal= 0;
+        int queryTotal= 0;
+        int lendTotal = 0;
+        int receiveTotal =0;
+        int disposeTotal= 0;
+        int querySuccessful=0;
+        int queryFailed = 0;
+        int lendSuccessful= 0;
+        int lendFailed= 0;
+        int receiveSuccessful =0;
+        int receiveFailed=0;
+        int finalSize= 0;
+        int finalHeight = 0;
+        double elapsedSeconds=0.0;
+    }
+
+    private static void executePurchase(InventoryIndex index, InventoryOperation op, RunStats stats) {
+        stats.purchaseTotal++;
+        if (op.getItem() != null) {
+            // Componente nuevo
+            index.put(op.getKey(), op.getItem());
+        } else {
+            InventoryItem item = index.get(op.getKey());
+            if (item!= null) {
+                item.addStock(op.getQuantity());
+                index.put(op.getKey(), item);
+            }
+        }
+    }
+
+    private static void executeQuery(InventoryIndex index, InventoryOperation op, RunStats stats) {
+        stats.queryTotal++;
+        InventoryItem item = index.get(op.getKey());
+        if (item != null) stats.querySuccessful++;
+        else {
+            stats.queryFailed++;
+        }
+    }
+
+    private static void executeLend(InventoryIndex index, InventoryOperation op, RunStats stats) {
+        stats.lendTotal++;
+        InventoryItem item = index.get(op.getKey());
+        if (item != null && item.lend(op.getQuantity())) {
+            index.put(op.getKey(),item);
+            stats.lendSuccessful++;
+        } else {
+            stats.lendFailed++;
+        }
+    }
+
+    private static void executeReceive(InventoryIndex index, InventoryOperation op, RunStats stats) {
+        stats.receiveTotal++;
+        InventoryItem item = index.get(op.getKey());
+        if (item !=null && item.receive(op.getQuantity())) {
+            index.put(op.getKey(), item);
+            stats.receiveSuccessful++;
+        } else {
+            stats.receiveFailed++;
+        }
+    }
+
+    private static void executeDispose(InventoryIndex index, InventoryOperation op, RunStats stats) {
+        stats.disposeTotal++;
+        index.delete(op.getKey());
+    }
+
+    private static RunStats runSequence(InventoryIndex index,
+        ArrayList<InventoryOperation> operations) {
+        RunStats stats = new RunStats();
+        StopwatchCPU timer =new StopwatchCPU();
+
+        for (InventoryOperation op : operations) {
+            switch (op.getType()) {
+                case PURCHASE: executePurchase(index, op, stats);break;
+                case QUERY:executeQuery(index, op, stats); break;
+                case LEND: executeLend(index, op, stats); break;
+                case RECEIVE:executeReceive(index, op, stats);break;
+                case DISPOSE:executeDispose(index, op, stats); break;
+            }
+        }
+
+        stats.elapsedSeconds= timer.elapsedTime();
+        stats.finalSize= index.size();
+        stats.finalHeight = index.height();
+        return stats;
+    }
+
+    private static boolean validate(InventoryIndex bst, InventoryIndex rb,
+        int m,
+        RunStats statsBST, RunStats statsRB,
+        long seed) {
+        boolean ok = true;
+        if (statsBST.finalSize != statsRB.finalSize) {
+            System.err.printf("[VALIDACION FALLO] seed=%d: tamaño BST=%d != RB=%d%n",
+                    seed, statsBST.finalSize, statsRB.finalSize);
+            ok =false;
+        }
+
+        for (int i = 0; i < 100; i++) {
+            int sampleKey = StdRandom.uniformInt(1, m * 4 + 1);
+            InventoryItem ib =bst.get(sampleKey);
+            InventoryItem ir= rb.get(sampleKey);
+            boolean bstHas = (ib != null);
+            boolean rbHas= (ir != null);
+            if (bstHas !=rbHas) {
+                System.err.printf("[VALIDACION FALLO] seed=%d: clave %d: BST=%s RB=%s%n",
+                seed, sampleKey, ib, ir);
+                ok = false;
+            }
+        }
+
+        int totalBST = statsBST.purchaseTotal + statsBST.queryTotal + statsBST.lendTotal
+                     + statsBST.receiveTotal  + statsBST.disposeTotal;
+        int totalRB  = statsRB.purchaseTotal  + statsRB.queryTotal  + statsRB.lendTotal
+                     + statsRB.receiveTotal   + statsRB.disposeTotal;
+        if (totalBST != m) {
+            System.err.printf("[VALIDACION FALLO] seed=%d: ops ejecutadas BST=%d esperado=%d%n",
+                    seed, totalBST, m);
+            ok = false;
+        }
+        if (totalRB != m) {
+            System.err.printf("[VALIDACION FALLO] seed=%d: ops ejecutadas RB=%d esperado=%d%n",
+                    seed, totalRB, m);
+            ok = false;
+        }
+
+        for (Integer key : bst.keys()) {
+            InventoryItem item = bst.get(key);
+            if (item == null) continue;
+            if (item.getStockAvailable() < 0 || item.getStockOnLoan() < 0 || item.getStockTotal() < 0) {
+                System.err.printf("[VALIDACION FALLO] seed=%d: stock negativo en BST key=%d%n",
+                        seed, key);
+                ok = false;
+            }
+            if (item.getStockAvailable() + item.getStockOnLoan() != item.getStockTotal()) {
+                System.err.printf("[VALIDACION FALLO] seed=%d: inconsistencia stock BST key=%d: "
+                        + "avail=%d + loan=%d != total=%d%n",
+                        seed, key,
+                        item.getStockAvailable(), item.getStockOnLoan(), item.getStockTotal());
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    private static String toCsvLine(int instancia, String estructura, int m, RunStats s) {
+        return String.format("%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.6f",
+                instancia, estructura, m,
+                s.purchaseTotal, s.queryTotal, s.lendTotal, s.receiveTotal, s.disposeTotal,
+                s.querySuccessful, s.queryFailed,
+                s.lendSuccessful, s.lendFailed,
+                s.receiveSuccessful, s.receiveFailed,
+                s.finalSize, s.finalHeight, s.elapsedSeconds);
+    }
+
+    public static void runExperiment(int m, int numInstances, String outputDir) {
+        int keyUniverse = 4 * m;
+        String fileName = outputDir + "/inventory_experiment_" + m + ".csv";
+        Out out = new Out(fileName);
+        out.println(CSV_HEADER);
+
+        System.out.printf("Ejecutando experimento m=%d ...%n", m);
+
+        for (int i = 1; i <= numInstances; i++) {
+            long seed = (long) m + i;
+
+            ArrayList<InventoryOperation> operations =
+                    DataGenerator.generateOperations(m, keyUniverse, seed);
+
+            BSTInventoryIndex bstIndex = new BSTInventoryIndex();
+            RunStats statsBST = runSequence(bstIndex, operations);
+
+            RedBlackBSTInventoryIndex rbIndex = new RedBlackBSTInventoryIndex();
+            RunStats statsRB = runSequence(rbIndex, operations);
+
+            boolean valid = validate(bstIndex, rbIndex, m, statsBST, statsRB, seed);
+            if (!valid) {
+                System.err.printf("[ADVERTENCIA] Instancia i=%d, m=%d no pasó la validación.%n", i, m);
+            }
+
+            out.println(toCsvLine(i, "BST",         m, statsBST));
+            out.println(toCsvLine(i, "RedBlackBST", m, statsRB));
+
+            if (i % 5 == 0) {
+                System.out.printf("  instancia %d/%d completada%n", i, numInstances);
+            }
+        }
+        out.close();
+        System.out.printf("  -> Guardado: %s%n", fileName);
+    }
+
+    public static void main(String[] args) {
+        String outputDir = args.length > 0 ? args[0] : ".";
+
+        int[] tValues = {12, 13, 14, 15, 16, 17, 18, 19};
+        int numInstances = 30;
+
+        for (int t : tValues) {
+            int m = 1 << t; 
+            runExperiment(m, numInstances, outputDir);
+        }
+        System.out.println("Experimento completo finalizado.");
+    }
+}
